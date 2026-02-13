@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Component, type ReactNode } from "react";
 import {
   Search,
   Zap,
@@ -23,10 +23,41 @@ import {
   Shield,
   Layers,
   GitCommitHorizontal,
-  TestTube2,
-  Container,
-  Settings2,
 } from "lucide-react";
+
+// ── Error Boundary ───────────────────────────────────────
+class ErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        this.props.fallback || (
+          <div className="card" style={{ borderColor: "var(--red-flag)" }}>
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-6 h-6" style={{ color: "var(--red-flag)" }} />
+              <div>
+                <h3 className="font-bold" style={{ color: "var(--red-flag)" }}>Rendering Error</h3>
+                <p className="text-sm" style={{ color: "var(--muted-light)" }}>
+                  Something went wrong displaying the results. Try a different username.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Types ────────────────────────────────────────────────
 
@@ -317,7 +348,32 @@ export default function Home() {
         throw new Error(result.error || "Failed to analyze profile");
       }
 
-      setData(result);
+      // Normalize data to prevent null/undefined crashes
+      const safeResult: ApiResponse = {
+        user: result.user || {},
+        repos: result.repos || [],
+        analysis: {
+          score: result.analysis?.score ?? 0,
+          headline: result.analysis?.headline ?? "Analysis Complete",
+          red_flags: result.analysis?.red_flags || [],
+          green_flags: result.analysis?.green_flags || [],
+          readme_score: result.analysis?.readme_score ?? 0,
+          code_quality_score: result.analysis?.code_quality_score ?? 0,
+          consistency_score: result.analysis?.consistency_score ?? 0,
+          diversity_score: result.analysis?.diversity_score ?? 0,
+          improvement_plan: result.analysis?.improvement_plan || [],
+          tech_stack_verdict: result.analysis?.tech_stack_verdict ?? "No data available.",
+          commit_verdict: result.analysis?.commit_verdict ?? "No data available.",
+        },
+        commitActivity: result.commitActivity || [],
+        codeQuality: result.codeQuality || [],
+        languageStats: result.languageStats || {},
+        totalStars: result.totalStars ?? 0,
+        totalForks: result.totalForks ?? 0,
+        accountAgeDays: result.accountAgeDays ?? 0,
+      };
+
+      setData(safeResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -414,416 +470,418 @@ export default function Home() {
 
       {/* ─── Dashboard ────────────────────────── */}
       {data && (
-        <section className="max-w-6xl mx-auto px-6 pb-20">
-          {/* User Profile Bar */}
-          <div
-            className="card flex flex-col sm:flex-row items-center gap-6 mb-8 animate-fade-in-up"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <img
-              src={data.user.avatar_url}
-              alt={data.user.login}
-              className="w-16 h-16 rounded-full"
-              style={{ outline: "2px solid var(--neon-green)", outlineOffset: "2px" }}
-            />
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold">
-                {data.user.name || data.user.login}
-              </h2>
-              <p className="text-sm" style={{ color: "var(--muted-light)" }}>
-                @{data.user.login}
-                {data.user.company && ` · ${data.user.company}`}
-              </p>
-              {data.user.bio && (
-                <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{data.user.bio}</p>
-              )}
-            </div>
-            <div className="flex gap-6 text-center">
-              <div>
-                <div className="text-xl font-bold">{data.user.public_repos}</div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>Repos</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold" style={{ color: "var(--neon-green)" }}>
-                  {data.totalStars}
-                </div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>Total ⭐</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">{data.user.followers}</div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>Followers</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">{data.totalForks}</div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>Forks</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column — Score + Sub-scores */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Main Score */}
-              <div
-                className="card neon-border text-center animate-fade-in-up"
-                style={{ animationDelay: "0.2s" }}
-              >
-                <h3
-                  className="text-xs font-bold uppercase tracking-widest mb-6"
-                  style={{ color: "var(--muted-light)" }}
-                >
-                  Employability Score
-                </h3>
-                <ScoreGauge score={data.analysis.score} />
-                <p className="mt-6 text-lg font-bold italic" style={{ color: "var(--foreground)" }}>
-                  &ldquo;{data.analysis.headline}&rdquo;
+        <ErrorBoundary>
+          <section className="max-w-6xl mx-auto px-6 pb-20">
+            {/* User Profile Bar */}
+            <div
+              className="card flex flex-col sm:flex-row items-center gap-6 mb-8 animate-fade-in-up"
+              style={{ animationDelay: "0.1s" }}
+            >
+              <img
+                src={data.user.avatar_url}
+                alt={data.user.login}
+                className="w-16 h-16 rounded-full"
+                style={{ outline: "2px solid var(--neon-green)", outlineOffset: "2px" }}
+              />
+              <div className="flex-1 text-center sm:text-left">
+                <h2 className="text-xl font-bold">
+                  {data.user.name || data.user.login}
+                </h2>
+                <p className="text-sm" style={{ color: "var(--muted-light)" }}>
+                  @{data.user.login}
+                  {data.user.company && ` · ${data.user.company}`}
                 </p>
+                {data.user.bio && (
+                  <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{data.user.bio}</p>
+                )}
               </div>
+              <div className="flex gap-6 text-center">
+                <div>
+                  <div className="text-xl font-bold">{data.user.public_repos}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>Repos</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold" style={{ color: "var(--neon-green)" }}>
+                    {data.totalStars}
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>Total ⭐</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{data.user.followers}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>Followers</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{data.totalForks}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>Forks</div>
+                </div>
+              </div>
+            </div>
 
-              {/* Sub-scores */}
-              <div
-                className="card animate-fade-in-up"
-                style={{ animationDelay: "0.25s" }}
-              >
-                <h3
-                  className="text-xs font-bold uppercase tracking-widest mb-4"
-                  style={{ color: "var(--muted-light)" }}
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column — Score + Sub-scores */}
+              <div className="lg:col-span-1 space-y-6">
+                {/* Main Score */}
+                <div
+                  className="card neon-border text-center animate-fade-in-up"
+                  style={{ animationDelay: "0.2s" }}
                 >
-                  Detailed Breakdown
-                </h3>
-                <MiniScore label="README Quality" score={data.analysis.readme_score} icon={BookOpen} />
-                <MiniScore label="Code Quality" score={data.analysis.code_quality_score} icon={Shield} />
-                <MiniScore label="Consistency" score={data.analysis.consistency_score} icon={Activity} />
-                <MiniScore label="Tech Diversity" score={data.analysis.diversity_score} icon={Layers} />
-              </div>
-
-              {/* Language Distribution */}
-              <div
-                className="card animate-fade-in-up"
-                style={{ animationDelay: "0.3s" }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Code2 className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
                   <h3
-                    className="text-xs font-bold uppercase tracking-widest"
+                    className="text-xs font-bold uppercase tracking-widest mb-6"
                     style={{ color: "var(--muted-light)" }}
                   >
-                    Language Distribution
+                    Employability Score
                   </h3>
+                  <ScoreGauge score={data.analysis.score} />
+                  <p className="mt-6 text-lg font-bold italic" style={{ color: "var(--foreground)" }}>
+                    &ldquo;{data.analysis.headline}&rdquo;
+                  </p>
                 </div>
-                <LanguageChart stats={data.languageStats} />
-                <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>
-                  {Object.keys(data.languageStats).length} languages detected across repos
-                </p>
-              </div>
-            </div>
 
-            {/* Right Column — Flags, Quality, Repos */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Verdicts Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Sub-scores */}
+                <div
+                  className="card animate-fade-in-up"
+                  style={{ animationDelay: "0.25s" }}
+                >
+                  <h3
+                    className="text-xs font-bold uppercase tracking-widest mb-4"
+                    style={{ color: "var(--muted-light)" }}
+                  >
+                    Detailed Breakdown
+                  </h3>
+                  <MiniScore label="README Quality" score={data.analysis.readme_score} icon={BookOpen} />
+                  <MiniScore label="Code Quality" score={data.analysis.code_quality_score} icon={Shield} />
+                  <MiniScore label="Consistency" score={data.analysis.consistency_score} icon={Activity} />
+                  <MiniScore label="Tech Diversity" score={data.analysis.diversity_score} icon={Layers} />
+                </div>
+
+                {/* Language Distribution */}
                 <div
                   className="card animate-fade-in-up"
                   style={{ animationDelay: "0.3s" }}
                 >
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-4">
                     <Code2 className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
                     <h3
                       className="text-xs font-bold uppercase tracking-widest"
-                      style={{ color: "var(--neon-green)" }}
+                      style={{ color: "var(--muted-light)" }}
                     >
-                      Tech Stack Verdict
+                      Language Distribution
                     </h3>
                   </div>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
-                    {data.analysis.tech_stack_verdict}
+                  <LanguageChart stats={data.languageStats || {}} />
+                  <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>
+                    {Object.keys(data.languageStats || {}).length} languages detected across repos
                   </p>
                 </div>
-                <div
-                  className="card animate-fade-in-up"
-                  style={{ animationDelay: "0.35s" }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
+              </div>
+
+              {/* Right Column — Flags, Quality, Repos */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Verdicts Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div
+                    className="card animate-fade-in-up"
+                    style={{ animationDelay: "0.3s" }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Code2 className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
+                      <h3
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: "var(--neon-green)" }}
+                      >
+                        Tech Stack Verdict
+                      </h3>
+                    </div>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                      {data.analysis.tech_stack_verdict}
+                    </p>
+                  </div>
+                  <div
+                    className="card animate-fade-in-up"
+                    style={{ animationDelay: "0.35s" }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <GitCommitHorizontal className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
+                      <h3
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: "var(--neon-green)" }}
+                      >
+                        Commit Verdict
+                      </h3>
+                    </div>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                      {data.analysis.commit_verdict}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Red/Green Flags */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="card animate-fade-in-up" style={{ animationDelay: "0.38s" }}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <AlertTriangle className="w-4 h-4" style={{ color: "var(--red-flag)" }} />
+                      <h3
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: "var(--red-flag)" }}
+                      >
+                        Red Flags
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {(data.analysis.red_flags || []).map((flag, i) => (
+                        <div key={i} className="flag-pill red">
+                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{flag}</span>
+                        </div>
+                      ))}
+                      {(!data.analysis.red_flags || data.analysis.red_flags.length === 0) && (
+                        <p className="text-sm" style={{ color: "var(--muted)" }}>
+                          No red flags — impressive!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="card animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <TrendingUp className="w-4 h-4" style={{ color: "var(--green-flag)" }} />
+                      <h3
+                        className="text-xs font-bold uppercase tracking-widest"
+                        style={{ color: "var(--green-flag)" }}
+                      >
+                        Green Flags
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {(data.analysis.green_flags || []).map((flag, i) => (
+                        <div key={i} className="flag-pill green">
+                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{flag}</span>
+                        </div>
+                      ))}
+                      {(!data.analysis.green_flags || data.analysis.green_flags.length === 0) && (
+                        <p className="text-sm" style={{ color: "var(--muted)" }}>
+                          No green flags detected.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Code Quality Matrix */}
+                <div className="card animate-fade-in-up" style={{ animationDelay: "0.42s" }}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
+                    <h3
+                      className="text-xs font-bold uppercase tracking-widest"
+                      style={{ color: "var(--muted-light)" }}
+                    >
+                      Code Quality Matrix
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr style={{ color: "var(--muted)" }}>
+                          <th className="text-left py-2 pr-4 font-medium">Repo</th>
+                          <th className="text-center py-2 px-2 font-medium">CI/CD</th>
+                          <th className="text-center py-2 px-2 font-medium">Tests</th>
+                          <th className="text-center py-2 px-2 font-medium">Lint</th>
+                          <th className="text-center py-2 px-2 font-medium">.gitignore</th>
+                          <th className="text-center py-2 px-2 font-medium">Docker</th>
+                          <th className="text-center py-2 px-2 font-medium">Docs</th>
+                          <th className="text-right py-2 pl-2 font-medium">Files</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data.codeQuality || []).map((q, i) => (
+                          <tr
+                            key={i}
+                            className="border-t"
+                            style={{ borderColor: "var(--card-border)" }}
+                          >
+                            <td className="py-2 pr-4 font-medium" style={{ color: "var(--neon-green)" }}>
+                              {q.repo}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasCI ? "✅" : "❌"}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasTests ? "✅" : "❌"}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasLinting ? "✅" : "❌"}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasGitignore ? "✅" : "❌"}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasDockerfile ? "✅" : "❌"}
+                            </td>
+                            <td className="text-center py-2 px-2">
+                              {q.hasDocs ? "✅" : "❌"}
+                            </td>
+                            <td className="text-right py-2 pl-2" style={{ color: "var(--muted-light)" }}>
+                              {q.fileCount}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Commit Activity */}
+                <div className="card animate-fade-in-up" style={{ animationDelay: "0.44s" }}>
+                  <div className="flex items-center gap-2 mb-4">
                     <GitCommitHorizontal className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
                     <h3
                       className="text-xs font-bold uppercase tracking-widest"
-                      style={{ color: "var(--neon-green)" }}
+                      style={{ color: "var(--muted-light)" }}
                     >
-                      Commit Verdict
+                      Recent Commit Activity (30d)
                     </h3>
                   </div>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
-                    {data.analysis.commit_verdict}
-                  </p>
-                </div>
-              </div>
-
-              {/* Red/Green Flags */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="card animate-fade-in-up" style={{ animationDelay: "0.38s" }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="w-4 h-4" style={{ color: "var(--red-flag)" }} />
-                    <h3
-                      className="text-xs font-bold uppercase tracking-widest"
-                      style={{ color: "var(--red-flag)" }}
-                    >
-                      Red Flags
-                    </h3>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {data.analysis.red_flags.map((flag, i) => (
-                      <div key={i} className="flag-pill red">
-                        <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{flag}</span>
-                      </div>
-                    ))}
-                    {data.analysis.red_flags.length === 0 && (
-                      <p className="text-sm" style={{ color: "var(--muted)" }}>
-                        No red flags — impressive!
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="card animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-4 h-4" style={{ color: "var(--green-flag)" }} />
-                    <h3
-                      className="text-xs font-bold uppercase tracking-widest"
-                      style={{ color: "var(--green-flag)" }}
-                    >
-                      Green Flags
-                    </h3>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {data.analysis.green_flags.map((flag, i) => (
-                      <div key={i} className="flag-pill green">
-                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{flag}</span>
-                      </div>
-                    ))}
-                    {data.analysis.green_flags.length === 0 && (
-                      <p className="text-sm" style={{ color: "var(--muted)" }}>
-                        No green flags detected.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Code Quality Matrix */}
-              <div className="card animate-fade-in-up" style={{ animationDelay: "0.42s" }}>
-                <div className="flex items-center gap-2 mb-4">
-                  <Shield className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
-                  <h3
-                    className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--muted-light)" }}
-                  >
-                    Code Quality Matrix
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr style={{ color: "var(--muted)" }}>
-                        <th className="text-left py-2 pr-4 font-medium">Repo</th>
-                        <th className="text-center py-2 px-2 font-medium">CI/CD</th>
-                        <th className="text-center py-2 px-2 font-medium">Tests</th>
-                        <th className="text-center py-2 px-2 font-medium">Lint</th>
-                        <th className="text-center py-2 px-2 font-medium">.gitignore</th>
-                        <th className="text-center py-2 px-2 font-medium">Docker</th>
-                        <th className="text-center py-2 px-2 font-medium">Docs</th>
-                        <th className="text-right py-2 pl-2 font-medium">Files</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.codeQuality.map((q, i) => (
-                        <tr
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {(data.commitActivity || []).map((c, i) => {
+                      const isActive = c.recentCommits > 0;
+                      return (
+                        <div
                           key={i}
-                          className="border-t"
-                          style={{ borderColor: "var(--card-border)" }}
+                          className="rounded-lg p-3 text-center"
+                          style={{
+                            background: isActive ? "rgba(0,255,136,0.04)" : "rgba(255,71,87,0.04)",
+                            border: `1px solid ${isActive ? "rgba(0,255,136,0.15)" : "rgba(255,71,87,0.1)"}`,
+                          }}
                         >
-                          <td className="py-2 pr-4 font-medium" style={{ color: "var(--neon-green)" }}>
-                            {q.repo}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasCI ? "✅" : "❌"}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasTests ? "✅" : "❌"}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasLinting ? "✅" : "❌"}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasGitignore ? "✅" : "❌"}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasDockerfile ? "✅" : "❌"}
-                          </td>
-                          <td className="text-center py-2 px-2">
-                            {q.hasDocs ? "✅" : "❌"}
-                          </td>
-                          <td className="text-right py-2 pl-2" style={{ color: "var(--muted-light)" }}>
-                            {q.fileCount}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Commit Activity */}
-              <div className="card animate-fade-in-up" style={{ animationDelay: "0.44s" }}>
-                <div className="flex items-center gap-2 mb-4">
-                  <GitCommitHorizontal className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
-                  <h3
-                    className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--muted-light)" }}
-                  >
-                    Recent Commit Activity (30d)
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {data.commitActivity.map((c, i) => {
-                    const isActive = c.recentCommits > 0;
-                    return (
-                      <div
-                        key={i}
-                        className="rounded-lg p-3 text-center"
-                        style={{
-                          background: isActive ? "rgba(0,255,136,0.04)" : "rgba(255,71,87,0.04)",
-                          border: `1px solid ${isActive ? "rgba(0,255,136,0.15)" : "rgba(255,71,87,0.1)"}`,
-                        }}
-                      >
-                        <div
-                          className="text-xs font-medium truncate mb-1"
-                          style={{ color: "var(--muted-light)" }}
-                        >
-                          {c.repo}
-                        </div>
-                        <div
-                          className="text-2xl font-bold"
-                          style={{ color: isActive ? "var(--green-flag)" : "var(--red-flag)" }}
-                        >
-                          {c.recentCommits}
-                        </div>
-                        <div className="text-xs" style={{ color: "var(--muted)" }}>
-                          commits
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Repo Health */}
-              <div className="card animate-fade-in-up" style={{ animationDelay: "0.46s" }}>
-                <div className="flex items-center gap-2 mb-4">
-                  <Github className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
-                  <h3
-                    className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--muted-light)" }}
-                  >
-                    Repo Health
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.repos.map((repo, i) => (
-                    <div key={i} className="repo-card">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <a
-                            href={repo.html_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-semibold text-sm hover:underline flex items-center gap-1"
-                            style={{ color: "var(--neon-green)" }}
+                          <div
+                            className="text-xs font-medium truncate mb-1"
+                            style={{ color: "var(--muted-light)" }}
                           >
-                            {repo.name}
-                            <ExternalLink className="w-3 h-3 opacity-50" />
-                          </a>
-                          <p className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>
-                            {repo.description || "No description"}
-                          </p>
+                            {c.repo}
+                          </div>
+                          <div
+                            className="text-2xl font-bold"
+                            style={{ color: isActive ? "var(--green-flag)" : "var(--red-flag)" }}
+                          >
+                            {c.recentCommits}
+                          </div>
+                          <div className="text-xs" style={{ color: "var(--muted)" }}>
+                            commits
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Repo Health */}
+                <div className="card animate-fade-in-up" style={{ animationDelay: "0.46s" }}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Github className="w-4 h-4" style={{ color: "var(--neon-green)" }} />
+                    <h3
+                      className="text-xs font-bold uppercase tracking-widest"
+                      style={{ color: "var(--muted-light)" }}
+                    >
+                      Repo Health
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(data.repos || []).map((repo, i) => (
+                      <div key={i} className="repo-card">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <a
+                              href={repo.html_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-sm hover:underline flex items-center gap-1"
+                              style={{ color: "var(--neon-green)" }}
+                            >
+                              {repo.name}
+                              <ExternalLink className="w-3 h-3 opacity-50" />
+                            </a>
+                            <p className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>
+                              {repo.description || "No description"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 mt-3 flex-wrap">
+                          {repo.language && (
+                            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
+                              <span
+                                className="w-2.5 h-2.5 rounded-full inline-block"
+                                style={{ background: langColors[repo.language] || "#666" }}
+                              />
+                              {repo.language}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
+                            <Star className="w-3 h-3" /> {repo.stargazers_count}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
+                            <GitFork className="w-3 h-3" /> {repo.forks_count}
+                          </span>
+                          {repo.has_readme ? (
+                            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--green-flag)" }}>
+                              <FileText className="w-3 h-3" /> README
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--red-flag)" }}>
+                              <XCircle className="w-3 h-3" /> No README
+                            </span>
+                          )}
+                          {repo.license ? (
+                            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--green-flag)" }}>
+                              <CheckCircle2 className="w-3 h-3" /> {repo.license.name}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs" style={{ color: "var(--yellow-flag)" }}>
+                              <AlertTriangle className="w-3 h-3" /> No License
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-3 flex-wrap">
-                        {repo.language && (
-                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
-                            <span
-                              className="w-2.5 h-2.5 rounded-full inline-block"
-                              style={{ background: langColors[repo.language] || "#666" }}
-                            />
-                            {repo.language}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
-                          <Star className="w-3 h-3" /> {repo.stargazers_count}
-                        </span>
-                        <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-light)" }}>
-                          <GitFork className="w-3 h-3" /> {repo.forks_count}
-                        </span>
-                        {repo.has_readme ? (
-                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--green-flag)" }}>
-                            <FileText className="w-3 h-3" /> README
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--red-flag)" }}>
-                            <XCircle className="w-3 h-3" /> No README
-                          </span>
-                        )}
-                        {repo.license ? (
-                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--green-flag)" }}>
-                            <CheckCircle2 className="w-3 h-3" /> {repo.license.name}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--yellow-flag)" }}>
-                            <AlertTriangle className="w-3 h-3" /> No License
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Quick Fixes */}
-          <div className="card mt-6 animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
-            <div className="flex items-center gap-2 mb-5">
-              <Lightbulb className="w-5 h-5" style={{ color: "var(--yellow-flag)" }} />
-              <h3
-                className="text-xs font-bold uppercase tracking-widest"
-                style={{ color: "var(--muted-light)" }}
-              >
-                Quick Fixes — Improvement Plan
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {data.analysis.improvement_plan.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 p-3 rounded-lg"
-                  style={{ background: "rgba(255, 165, 2, 0.04)" }}
+            {/* Quick Fixes */}
+            <div className="card mt-6 animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+              <div className="flex items-center gap-2 mb-5">
+                <Lightbulb className="w-5 h-5" style={{ color: "var(--yellow-flag)" }} />
+                <h3
+                  className="text-xs font-bold uppercase tracking-widest"
+                  style={{ color: "var(--muted-light)" }}
                 >
-                  <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--yellow-flag)" }} />
-                  <p className="text-sm" style={{ color: "var(--foreground)" }}>{item}</p>
-                </div>
-              ))}
+                  Quick Fixes — Improvement Plan
+                </h3>
+              </div>
+              <div className="space-y-3">
+                {(data.analysis.improvement_plan || []).map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 p-3 rounded-lg"
+                    style={{ background: "rgba(255, 165, 2, 0.04)" }}
+                  >
+                    <ArrowRight className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--yellow-flag)" }} />
+                    <p className="text-sm" style={{ color: "var(--foreground)" }}>{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="text-center mt-12">
-            <p className="text-xs" style={{ color: "var(--muted)" }}>
-              Powered by <span style={{ color: "var(--neon-green)" }}>Groq</span> · llama-3.3-70b-versatile · Built with Next.js
-            </p>
-          </div>
-        </section>
+            {/* Footer */}
+            <div className="text-center mt-12">
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Powered by <span style={{ color: "var(--neon-green)" }}>Groq</span> · llama-3.3-70b-versatile · Built with Next.js
+              </p>
+            </div>
+          </section>
+        </ErrorBoundary>
       )}
 
       {/* ─── Empty Footer ─────────────────────── */}
