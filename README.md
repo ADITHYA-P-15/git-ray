@@ -15,9 +15,11 @@ Git-Ray deep-scans a GitHub username and delivers a brutally honest portfolio re
 
 ## 🎬 Live Demo
 
-<p align="center">
-  <img src="assets/demo.webp" alt="Git-Ray Demo — analyzing torvalds' GitHub profile" width="800" />
-</p>
+
+
+https://github.com/user-attachments/assets/199b0504-fae5-4417-ac9b-3b02f6eef634
+
+
 
 > *Analyzing Linus Torvalds' GitHub profile — from input to full recruiter audit in seconds.*
 
