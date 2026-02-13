@@ -1,0 +1,289 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0f;
+  --foreground: #e0e0e0;
+  --card-bg: #111118;
+  --card-border: #1e1e2e;
+  --neon-green: #00ff88;
+  --neon-green-dim: #00cc6a;
+  --neon-green-glow: rgba(0, 255, 136, 0.15);
+  --neon-green-glow-strong: rgba(0, 255, 136, 0.3);
+  --red-flag: #ff4757;
+  --yellow-flag: #ffa502;
+  --green-flag: #00ff88;
+  --muted: #6b7280;
+  --muted-light: #9ca3af;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-neon: var(--neon-green);
+  --color-neon-dim: var(--neon-green-dim);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-red-flag: var(--red-flag);
+  --color-yellow-flag: var(--yellow-flag);
+  --color-green-flag: var(--green-flag);
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  min-height: 100vh;
+}
+
+/* Neon glow effects */
+.neon-glow {
+  text-shadow: 0 0 10px var(--neon-green-glow-strong),
+    0 0 40px var(--neon-green-glow);
+}
+
+.neon-border {
+  border: 1px solid var(--card-border);
+  box-shadow: 0 0 15px var(--neon-green-glow),
+    inset 0 0 15px rgba(0, 255, 136, 0.03);
+}
+
+.neon-border:hover {
+  box-shadow: 0 0 25px var(--neon-green-glow-strong),
+    inset 0 0 25px rgba(0, 255, 136, 0.05);
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(0, 255, 136, 0.2);
+  box-shadow: 0 0 30px var(--neon-green-glow);
+}
+
+/* Score gauge */
+.gauge-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.gauge-ring {
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 8px var(--neon-green-glow-strong));
+}
+
+.gauge-bg {
+  fill: none;
+  stroke: #1e1e2e;
+  stroke-width: 12;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s ease-out, stroke 0.5s ease;
+}
+
+.gauge-score {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.gauge-score .number {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge-score .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted-light);
+  margin-top: 4px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-neon {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px var(--neon-green-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--neon-green-glow-strong), 0 0 40px var(--neon-green-glow);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--card-bg) 25%,
+      #1a1a2e 50%,
+      var(--card-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Input styling */
+.search-input {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 16px 20px 16px 48px;
+  font-size: 16px;
+  color: var(--foreground);
+  outline: none;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.search-input:focus {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 20px var(--neon-green-glow), 0 0 40px var(--neon-green-glow);
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+}
+
+/* Button */
+.btn-neon {
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-green-dim));
+  color: #0a0a0f;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-neon:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 25px var(--neon-green-glow-strong);
+}
+
+.btn-neon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Flag pills */
+.flag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.flag-pill.red {
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  color: var(--red-flag);
+}
+
+.flag-pill.green {
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  color: var(--green-flag);
+}
+
+/* Progress bar */
+.readme-bar-bg {
+  background: #1e1e2e;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.readme-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 1s ease-out;
+}
+
+/* Repo card */
+.repo-card {
+  background: rgba(17, 17, 24, 0.6);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.repo-card:hover {
+  border-color: rgba(0, 255, 136, 0.15);
+  background: rgba(17, 17, 24, 0.9);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
