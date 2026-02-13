@@ -2,6 +2,8 @@
 
 > **Instant AI-powered FAANG-level recruiter audit for any GitHub profile.**
 
+🔗 **Live Demo:** [git-ray.vercel.app](https://git-ray.vercel.app)
+
 Git-Ray deep-scans a GitHub username and delivers a brutally honest portfolio review — analyzing code quality, commit patterns, tech diversity, README quality, and engineering best practices. Powered by **Groq** (llama-3.3-70b-versatile) for near-instant AI inference.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
