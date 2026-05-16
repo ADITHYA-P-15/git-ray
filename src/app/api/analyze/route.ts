@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchGitHubData, GitHubNotFoundError } from "@/lib/github";
+import { fetchGitHubData, GitHubNotFoundError, GitHubRateLimitError } from "@/lib/github";
 import { analyzeWithGroq } from "@/lib/groq";
+
+export const maxDuration = 60; // Allow up to 60s for Vercel serverless functions
 
 export async function POST(request: NextRequest) {
     try {
@@ -45,6 +47,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: error.message },
                 { status: 404 }
+            );
+        }
+
+        if (error instanceof GitHubRateLimitError) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 429 }
+            );
+        }
+
+        // Groq-specific errors
+        if (error instanceof Error && error.message.includes("Groq")) {
+            console.error("Groq analysis error:", error);
+            return NextResponse.json(
+                { error: "AI analysis failed. The analysis service may be temporarily unavailable. Please try again." },
+                { status: 502 }
             );
         }
 

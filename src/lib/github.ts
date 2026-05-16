@@ -1,8 +1,50 @@
 import { Octokit } from "octokit";
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-});
+// ── Lazy, resilient Octokit initialization ──────────────────
+// Instead of crashing at module load when the token is invalid,
+// we create the client on-demand and fall back to unauthenticated
+// mode (60 req/hr) if the token is missing or revoked.
+
+let _octokit: Octokit | null = null;
+let _tokenValidated = false;
+let _usingAuth = false;
+
+async function getOctokit(): Promise<Octokit> {
+  if (_octokit && _tokenValidated) return _octokit;
+
+  const token = process.env.GITHUB_TOKEN;
+
+  if (token) {
+    const candidate = new Octokit({ auth: token });
+
+    if (!_tokenValidated) {
+      try {
+        // Quick validation — check if the token is accepted
+        await candidate.rest.rateLimit.get();
+        _octokit = candidate;
+        _usingAuth = true;
+        _tokenValidated = true;
+        console.log("[git-ray] GitHub token validated — authenticated mode (5000 req/hr)");
+        return _octokit;
+      } catch (err: unknown) {
+        const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
+        if (status === 401 || status === 403) {
+          console.warn("[git-ray] GitHub token is invalid/revoked — falling back to unauthenticated mode (60 req/hr)");
+        } else {
+          console.warn("[git-ray] GitHub token validation failed, falling back to unauthenticated mode:", err);
+        }
+      }
+    }
+  } else {
+    console.warn("[git-ray] No GITHUB_TOKEN set — running in unauthenticated mode (60 req/hr)");
+  }
+
+  // Unauthenticated fallback
+  _octokit = new Octokit();
+  _usingAuth = false;
+  _tokenValidated = true;
+  return _octokit;
+}
 
 export interface GitHubUser {
   login: string;
@@ -81,16 +123,35 @@ export class GitHubNotFoundError extends Error {
   }
 }
 
+export class GitHubRateLimitError extends Error {
+  constructor() {
+    super(
+      _usingAuth
+        ? "GitHub API rate limit exceeded. Please try again later."
+        : "GitHub API rate limit exceeded (unauthenticated: 60 req/hr). Configure a GITHUB_TOKEN for higher limits."
+    );
+    this.name = "GitHubRateLimitError";
+  }
+}
+
 export async function fetchGitHubData(
   username: string
 ): Promise<GitHubData> {
+  const octokit = await getOctokit();
+
   // 1. Fetch user profile
   let userResponse;
   try {
     userResponse = await octokit.rest.users.getByUsername({ username });
   } catch (error: unknown) {
-    if (error && typeof error === "object" && "status" in error && error.status === 404) {
-      throw new GitHubNotFoundError(username);
+    if (error && typeof error === "object" && "status" in error) {
+      const status = (error as { status: number }).status;
+      if (status === 404) {
+        throw new GitHubNotFoundError(username);
+      }
+      if (status === 403 || status === 429) {
+        throw new GitHubRateLimitError();
+      }
     }
     throw error;
   }
